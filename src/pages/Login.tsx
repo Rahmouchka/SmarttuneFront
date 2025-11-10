@@ -23,7 +23,7 @@ const Login = () => {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            <img src={logo} alt="SmartTune" className="w-16 h-16 animate-wave" />
+            <img src={logo} alt="SmartTune" className="w-50 h-16 animate-wave" />
           </div>
           <h1 className="text-3xl font-bold mb-2">
             <span className="bg-gradient-primary bg-clip-text text-transparent">
