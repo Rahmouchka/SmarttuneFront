@@ -70,10 +70,10 @@ const Index = () => {
           <div className="max-w-4xl mx-auto space-y-8">
             <h1 className="text-6xl md:text-8xl font-extrabold animate-fade-in-up leading-tight">
               <span className="bg-gradient-primary bg-clip-text text-transparent">
-                Votre musique,
+                SmartTune,
               </span>
               <br />
-              <span className="text-foreground">Partout, Toujours</span>
+              <span className="text-foreground">la musique sans limites!</span>
             </h1>
             
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto animate-fade-in-up" style={{ animationDelay: '0.2s' }}>

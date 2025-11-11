@@ -3,19 +3,25 @@ import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Music, Mail, Lock, ArrowLeft, Upload, FileText } from "lucide-react";
+import { Button } from "@/components/ui/button.tsx";
+import { Card } from "@/components/ui/card.tsx";
+import { Input } from "@/components/ui/input.tsx";
+import { Label } from "@/components/ui/label.tsx";
+import { useToast } from "@/hooks/use-toast.ts";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
+import { Users,User, Phone, Calendar,Eye, EyeOff, Mail, Lock, ArrowLeft } from "lucide-react";
 import logo from "@/assets/smarttune-logo.png";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ACCEPTED_FILE_TYPES = ["application/pdf"];
+const userSchema = z.object({
+  firstName: z.string()
+      .min(2, "Le prénom doit contenir au moins 2 caractères")
+      .max(50)
+      .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, "Prénom invalide"),
 
-const artistSchema = z.object({
+  lastName: z.string()
+      .min(2, "Le nom doit contenir au moins 2 caractères")
+      .max(50)
+      .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, "Nom invalide"),
   username: z.string()
     .min(3, "Le nom d'utilisateur doit contenir au moins 3 caractères")
     .max(30, "Le nom d'utilisateur ne peut pas dépasser 30 caractères")
@@ -33,55 +39,55 @@ const artistSchema = z.object({
     .regex(/[0-9]/, "Le mot de passe doit contenir au moins un chiffre")
     .regex(/[^A-Za-z0-9]/, "Le mot de passe doit contenir au moins un caractère spécial"),
   confirmPassword: z.string(),
-  bio: z.string()
-    .min(50, "La biographie doit contenir au moins 50 caractères")
-    .max(1000, "La biographie ne peut pas dépasser 1000 caractères"),
-  artistDocument: z.any()
-    .refine((files) => files?.length === 1, "Veuillez télécharger un document")
-    .refine(
-      (files) => files?.[0]?.size <= MAX_FILE_SIZE,
-      "La taille du fichier ne doit pas dépasser 5MB"
-    )
-    .refine(
-      (files) => ACCEPTED_FILE_TYPES.includes(files?.[0]?.type),
-      "Seuls les fichiers PDF sont acceptés"
-    ),
+  age: z.coerce.number()
+      .int()
+      .min(13)
+      .max(100),
+
+  gender: z.enum(["F", "H"], { message: "Veuillez sélectionner un genre" }),
+
+  phone: z.string()
+      .regex(/^(\+216|00216)?[0-9]{8}$/, "Numéro invalide (ex: 20123456)")
+      .optional()
+      .or(z.literal("")),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Les mots de passe ne correspondent pas",
   path: ["confirmPassword"],
 });
 
-type ArtistFormData = z.infer<typeof artistSchema>;
+type UserFormData = z.infer<typeof userSchema>;
 
-const RegisterArtist = () => {
+const RegisterUser = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [fileName, setFileName] = useState<string>("");
 
-  const { register, handleSubmit, formState: { errors }, watch } = useForm<ArtistFormData>({
-    resolver: zodResolver(artistSchema),
+  const { register, handleSubmit, formState: { errors },setValue,watch } = useForm<UserFormData>({
+    resolver: zodResolver(userSchema),
   });
 
-  const watchFile = watch("artistDocument");
-
-  const onSubmit = async (data: ArtistFormData) => {
+  const onSubmit = async (data: UserFormData) => {
     setIsLoading(true);
     
     try {
-      const formData = new FormData();
-      formData.append("username", data.username);
-      formData.append("email", data.email);
-      formData.append("password", data.password);
-      formData.append("bio", data.bio);
-      formData.append("artistDocument", data.artistDocument[0]);
-
       // TODO: Intégrer avec votre API Spring Boot
-      const response = await fetch("http://localhost:8080/api/auth/register/artist", {
+      const response = await fetch("http://localhost:8082/api/auth/register/user", {
         method: "POST",
-        body: formData,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: data.username,
+          prenom: data.firstName,
+          nom: data.lastName,
+          email: data.email,
+          password: data.password,
+          age: data.age,
+          genre: data.gender,
+          numTel: data.phone || null,
+        }),
       });
 
       if (!response.ok) {
@@ -90,12 +96,12 @@ const RegisterArtist = () => {
       }
 
       toast({
-        title: "Demande envoyée avec succès !",
-        description: "Votre demande est en attente d'approbation. Vous recevrez un email dès qu'un administrateur aura validé votre compte.",
+        title: "Compte créé avec succès !",
+        description: "Vérifiez votre email pour confirmer votre compte.",
       });
 
-      // Rediriger vers une page de confirmation
-      navigate("/register/pending");
+      // Rediriger vers la page de confirmation ou de connexion
+      navigate("/login");
     } catch (error) {
       toast({
         title: "Erreur",
@@ -111,46 +117,38 @@ const RegisterArtist = () => {
     <div className="min-h-screen bg-gradient-bg flex items-center justify-center p-4 relative overflow-hidden">
       {/* Animated background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-primary/20 rounded-full blur-3xl animate-float" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-20 left-10 w-72 h-72 bg-accent/20 rounded-full blur-3xl animate-float" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-accent/20 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }} />
       </div>
 
-      <div className="w-full max-w-2xl relative z-10 animate-scale-in">
+      <div className="w-full max-w-md relative z-10 animate-scale-in">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
             <img src={logo} alt="SmartTune" className="w-50 h-16 animate-wave" />
           </div>
           <h1 className="text-3xl font-bold mb-2">
-            <span className="bg-gradient-primary bg-clip-text text-transparent">
-              Devenir artiste sur SmartTune
+            <span className="bg-gradient-accent bg-clip-text text-transparent">
+              Créer un compte utilisateur
             </span>
           </h1>
           <p className="text-muted-foreground">
-            Partagez votre musique avec le monde entier
+            Rejoignez SmartTune et découvrez de la musique incroyable
           </p>
         </div>
 
         <Card className="p-8 border-2 border-border bg-card/50 backdrop-blur-sm">
-          {/* Info banner */}
-          <div className="mb-6 p-4 bg-primary/10 border border-primary/20 rounded-lg">
-            <p className="text-sm text-muted-foreground">
-              <strong className="text-primary">Note importante :</strong> Votre demande sera examinée par notre équipe. 
-              Vous recevrez un email une fois votre compte validé.
-            </p>
-          </div>
-
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* Username */}
             <div className="space-y-2">
               <Label htmlFor="username" className="text-foreground flex items-center gap-2">
-                <Music className="w-4 h-4" />
-                Nom d'artiste
+                <User className="w-4 h-4" />
+                Nom d'utilisateur
               </Label>
               <Input
                 id="username"
                 type="text"
-                placeholder="Votre nom de scène"
+                placeholder="votrenomdutilisateur"
                 className={`bg-background border-border ${errors.username ? 'border-destructive' : ''}`}
                 {...register("username")}
                 disabled={isLoading}
@@ -158,6 +156,55 @@ const RegisterArtist = () => {
               {errors.username && (
                 <p className="text-sm text-destructive">{errors.username.message}</p>
               )}
+            </div>
+            {/* Prénom & Nom */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">Prénom</Label>
+                <Input {...register("firstName")} placeholder="Jean" />
+                {errors.firstName && <p className="text-sm text-destructive">{errors.firstName.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Nom</Label>
+                <Input {...register("lastName")} placeholder="Dupont" />
+                {errors.lastName && <p className="text-sm text-destructive">{errors.lastName.message}</p>}
+              </div>
+            </div>
+
+            {/* Âge */}
+            <div className="space-y-2">
+              <Label htmlFor="age">Âge</Label>
+              <Input type="number" {...register("age")} placeholder="18" />
+              {errors.age && <p className="text-sm text-destructive">{errors.age.message}</p>}
+            </div>
+
+            {/* Genre */}
+            <div className="space-y-2">
+              <Label className="text-foreground flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Genre
+              </Label>
+              <Select
+                  onValueChange={(value) => setValue("gender", value as "F" | "H")}
+                  defaultValue={watch("gender")}
+                  disabled={isLoading}
+              >
+                <SelectTrigger className={`bg-background border-border ${errors.gender ? 'border-destructive' : ''}`}>
+                  <SelectValue placeholder="Sélectionnez votre genre" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="F">Femme</SelectItem>
+                  <SelectItem value="H">Homme</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.gender && <p className="text-sm text-destructive">{errors.gender.message}</p>}
+            </div>
+
+            {/* Téléphone */}
+            <div className="space-y-2">
+              <Label htmlFor="phone">Téléphone (optionnel)</Label>
+              <Input type="tel" {...register("phone")} placeholder="+216 20 123 456" />
+              {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
             </div>
 
             {/* Email */}
@@ -235,87 +282,13 @@ const RegisterArtist = () => {
               )}
             </div>
 
-            {/* Bio */}
-            <div className="space-y-2">
-              <Label htmlFor="bio" className="text-foreground flex items-center gap-2">
-                <FileText className="w-4 h-4" />
-                Biographie artistique
-              </Label>
-              <Textarea
-                id="bio"
-                placeholder="Parlez-nous de votre parcours musical, vos influences, votre style..."
-                className={`bg-background border-border min-h-32 ${errors.bio ? 'border-destructive' : ''}`}
-                {...register("bio")}
-                disabled={isLoading}
-              />
-              {errors.bio && (
-                <p className="text-sm text-destructive">{errors.bio.message}</p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Minimum 50 caractères. Partagez votre histoire musicale !
-              </p>
-            </div>
-
-            {/* Document Upload */}
-            <div className="space-y-2">
-              <Label htmlFor="artistDocument" className="text-foreground flex items-center gap-2">
-                <Upload className="w-4 h-4" />
-                Document de vérification (PDF)
-              </Label>
-              <div className="relative">
-                <Input
-                  id="artistDocument"
-                  type="file"
-                  accept=".pdf"
-                  className="hidden"
-                  {...register("artistDocument")}
-                  disabled={isLoading}
-                  onChange={(e) => {
-                    register("artistDocument").onChange(e);
-                    if (e.target.files?.[0]) {
-                      setFileName(e.target.files[0].name);
-                    }
-                  }}
-                />
-                <label
-                  htmlFor="artistDocument"
-                  className={`flex items-center justify-center gap-2 p-4 border-2 border-dashed rounded-lg cursor-pointer transition-all duration-300 ${
-                    errors.artistDocument 
-                      ? 'border-destructive bg-destructive/10' 
-                      : 'border-border bg-background hover:border-primary hover:bg-primary/5'
-                  }`}
-                >
-                  {fileName ? (
-                    <>
-                      <FileText className="w-5 h-5 text-primary" />
-                      <span className="text-sm text-foreground">{fileName}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="w-5 h-5 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">
-                        Cliquez pour télécharger votre document
-                      </span>
-                    </>
-                  )}
-                </label>
-              </div>
-              {errors.artistDocument && (
-                <p className="text-sm text-destructive">{errors.artistDocument.message as string}</p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Téléchargez un PDF contenant : preuve d'identité, liens vers votre musique existante, 
-                ou un press kit (max 5MB)
-              </p>
-            </div>
-
             <Button 
               type="submit"
-              className="w-full bg-gradient-primary hover:shadow-glow transition-all duration-300"
+              className="w-full bg-accent hover:bg-accent/90 text-accent-foreground hover:shadow-glow-accent transition-all duration-300"
               size="lg"
               disabled={isLoading}
             >
-              {isLoading ? "Envoi en cours..." : "Envoyer ma demande"}
+              {isLoading ? "Création en cours..." : "Créer mon compte"}
             </Button>
           </form>
 
@@ -324,7 +297,7 @@ const RegisterArtist = () => {
               Déjà un compte ?{" "}
               <button 
                 onClick={() => navigate("/login")}
-                className="text-primary hover:underline font-semibold"
+                className="text-accent hover:underline font-semibold"
               >
                 Se connecter
               </button>
@@ -347,4 +320,4 @@ const RegisterArtist = () => {
   );
 };
 
-export default RegisterArtist;
+export default RegisterUser;
