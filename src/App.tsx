@@ -12,7 +12,7 @@ import NotFound from "./pages/NotFound";
 import ForgotPassword from "./pages/login/ForgotPassword.tsx"
 import ResetPassword from "./pages/login/ResetPassword.tsx"
 import UserDashboard from "./pages/user/dashboard/UserDashboard.tsx"
-import ArtistDashboard from "./pages/artist/dashboard/ArtistDashboard.tsx"
+import ArtistDashboard from "./pages/artist/ArtistDashboard.tsx"
 import AdminDashboard from "./pages/admin/dashboard/AdminDashboard.tsx"
 import ArtistPending from "./pages/register/ArtistPending.tsx"
 
