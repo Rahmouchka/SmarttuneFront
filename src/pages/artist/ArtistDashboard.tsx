@@ -13,7 +13,7 @@ import { Slider } from '@/components/ui/slider';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 
-const ARTIST_ID = 1;
+const ARTIST_ID = 9;
 
 export default function ArtistDashboard() {
   const [songs, setSongs] = useState<Chanson[]>([]);
