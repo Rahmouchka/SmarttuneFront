@@ -29,6 +29,7 @@ export default function ArtistDashboard() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [albumTitle, setAlbumTitle] = useState('');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+const [showPlayer, setShowPlayer] = useState(true);
 
   const fetchData = async () => {
     setLoading(true);
@@ -104,15 +105,16 @@ useEffect(() => {
     };
   }, []);
 
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (isPlaying) {
-      audio.play().catch(() => setIsPlaying(false));
-    } else {
-      audio.pause();
-    }
-  }, [isPlaying]);
+useEffect(() => {
+  const audio = audioRef.current;
+  if (!audio) return;
+
+  if (isPlaying) {
+    audio.play().catch(() => setIsPlaying(false));
+  } else {
+    audio.pause();
+  }
+}, [isPlaying, currentSong]); 
 
   useEffect(() => {
     if (audioRef.current) {
@@ -124,7 +126,10 @@ useEffect(() => {
     if (!song.url) return;
     if (currentSong?.id === song.id) {
       setIsPlaying(prev => !prev);
+      setShowPlayer(true);
+    return;
     } else {
+      setShowPlayer(true);
       setCurrentSong(song);
       setIsPlaying(true);
       setProgress(0);
@@ -283,13 +288,25 @@ useEffect(() => {
 
       {/* PLAYER FINAL – MARCHE À 100% MÊME APRÈS REFRESH */}
      {/* PLAYER – VERSION BULLETPROOF (marche à 100% après refresh) */}
-{currentSong?.url && (
+{/* PLAYER – VERSION BULLETPROOF (avec bouton fermer) */}
+{currentSong?.url && showPlayer && (
   <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-xl border-t border-border/50 z-50 shadow-2xl">
-    {/* ON RECRÉE L'AUDIO À CHAQUE CHANSON + ON FORCE LE SRC DIRECTEMENT */}
+
+    {/* Bouton X pour fermer */}
+    <div className="absolute top-3 right-4">
+      <button
+        onClick={() => setShowPlayer(false)}
+        className="text-muted-foreground hover:text-red-500 transition text-xl font-bold"
+      >
+        ✖
+      </button>
+    </div>
+
+    {/* Audio element */}
     <audio
-      key={currentSong.id}                     // Recrée l'élément
+      key={currentSong.id}
       ref={audioRef}
-      src={currentSong.url}                    // src en prop = force le chargement immédiat
+      src={currentSong.url}
       preload="metadata"
       crossOrigin="anonymous"
     />
@@ -319,6 +336,7 @@ useEffect(() => {
 
     <div className="container mx-auto px-4 py-5">
       <div className="flex items-center justify-between gap-6">
+
         {/* Info chanson */}
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-orange-500 rounded-xl flex items-center justify-center shadow-xl flex-shrink-0">
@@ -400,6 +418,7 @@ useEffect(() => {
     </div>
   </div>
 )}
+
     </div>
   );
 }
