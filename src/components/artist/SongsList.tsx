@@ -42,39 +42,62 @@ export function SongsList({ songs, artisteId, onUpdate, onPlaySong, currentSongI
           return (
             <div
               key={song.id}
-              className={`group flex items-center justify-between p-4 rounded-lg border transition cursor-pointer ${
-                isCurrentSong ? 'bg-accent/50 border-primary' : 'bg-card/50 hover:bg-accent/30'
+              className={`group relative flex items-center justify-between p-5 rounded-xl border transition-all duration-300 cursor-pointer overflow-hidden ${
+                isCurrentSong 
+                  ? 'bg-gradient-to-r from-primary/10 via-accent/5 to-transparent border-primary shadow-glow' 
+                  : 'bg-card/50 hover:bg-card/80 hover:shadow-lg hover:border-primary/30'
               }`}
               onClick={() => song.url && onPlaySong(song)}
             >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-accent/20 rounded flex items-center justify-center">
+              {/* Effet de fond animé pour la chanson en cours */}
+              {isCurrentSong && isPlaying && (
+                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent animate-pulse" />
+              )}
+              
+              <div className="flex items-center gap-4 relative z-10">
+                <div className={`w-14 h-14 rounded-lg flex items-center justify-center transition-all duration-300 ${
+                  isCurrentSong 
+                    ? 'bg-gradient-primary shadow-glow' 
+                    : 'bg-gradient-to-br from-primary/20 to-accent/20'
+                }`}>
                   {isCurrentSong && isPlaying ? (
-                    <div className="flex gap-1 items-end h-6">
-                      <div className="w-1 bg-primary animate-[wave_1s_ease-in-out_infinite] h-3"></div>
-                      <div className="w-1 bg-primary animate-[wave_1s_ease-in-out_infinite_0.2s] h-5"></div>
-                      <div className="w-1 bg-primary animate-[wave_1s_ease-in-out_infinite_0.4s] h-4"></div>
+                    <div className="flex gap-0.5 items-end h-6">
+                      <div className="w-1 bg-white rounded-full animate-[wave_0.8s_ease-in-out_infinite] h-3"></div>
+                      <div className="w-1 bg-white rounded-full animate-[wave_0.8s_ease-in-out_infinite_0.15s] h-5"></div>
+                      <div className="w-1 bg-white rounded-full animate-[wave_0.8s_ease-in-out_infinite_0.3s] h-4"></div>
                     </div>
                   ) : (
-                    <Music className="w-6 h-6 text-primary" />
+                    <Music className={`w-6 h-6 ${isCurrentSong ? 'text-white' : 'text-primary'}`} />
                   )}
                 </div>
                 <div>
-                  <p className={`font-medium ${isCurrentSong ? 'text-primary' : ''}`}>{song.titre}</p>
-                  {song.albumTitre && <p className="text-xs text-muted-foreground">Dans • {song.albumTitre}</p>}
+                  <p className={`font-semibold text-base transition-colors ${isCurrentSong ? 'text-primary' : ''}`}>
+                    {song.titre}
+                  </p>
+                  {song.albumTitre && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                      <span className="w-1 h-1 rounded-full bg-muted-foreground"></span>
+                      {song.albumTitre}
+                    </p>
+                  )}
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition">
+              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity relative z-10">
                 {song.url && (
-                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onPlaySong(song); }}>
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="hover:bg-primary/10 hover:text-primary"
+                    onClick={(e) => { e.stopPropagation(); onPlaySong(song); }}
+                  >
                     {isCurrentSong && isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                   </Button>
                 )}
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="text-destructive"
+                  className="text-destructive hover:bg-destructive/10"
                   onClick={(e) => { e.stopPropagation(); setSongToDelete(song); }}
                 >
                   <Trash2 className="w-4 h-4" />

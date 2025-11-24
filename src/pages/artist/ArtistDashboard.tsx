@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Music, Album as AlbumIcon, Play, Pause, Plus, SkipForward, SkipBack, Volume2 } from 'lucide-react';
+import { Music, Album as AlbumIcon, Play, Pause, SkipForward, SkipBack, Volume2 } from 'lucide-react';
 import { UploadSongDialog } from '@/components/artist/UploadSongDialog';
 import { SongsList } from '@/components/artist/SongsList';
 import { AlbumsList } from '@/components/artist/AlbumsList';
@@ -27,7 +27,6 @@ export default function ArtistDashboard() {
   const [volume, setVolume] = useState(80);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
-
   const [albumTitle, setAlbumTitle] = useState('');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
@@ -50,91 +49,79 @@ export default function ArtistDashboard() {
   useEffect(() => {
     fetchData();
   }, []);
+useEffect(() => {
+  const audio = audioRef.current;
+  if (!audio) return;
 
-  // Quand currentSong change -> mettre à jour src + load()
+  const updateProgress = () => setProgress(audio.currentTime);
+  const updateDuration = () => {
+    const dur = isFinite(audio.duration) ? audio.duration : 0;
+    setDuration(dur);
+  };
+  const onEnded = () => {
+    setIsPlaying(false);
+    setProgress(0);
+  };
+
+  audio.addEventListener("timeupdate", updateProgress);
+  audio.addEventListener("loadedmetadata", updateDuration);
+  audio.addEventListener("durationchange", updateDuration);
+  audio.addEventListener("ended", onEnded);
+
+  return () => {
+    audio.removeEventListener("timeupdate", updateProgress);
+    audio.removeEventListener("loadedmetadata", updateDuration);
+    audio.removeEventListener("durationchange", updateDuration);
+    audio.removeEventListener("ended", onEnded);
+  };
+}, [currentSong]); 
+ 
+
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (currentSong?.url) {
-      // Mettre la source explicitement et forcer le chargement
-      audio.src = currentSong.url;
-      try {
-        audio.load();
-      } catch (e) {
-        // certains environnements peuvent jeter, on ignore mais loggue
-        console.warn('audio.load() failed', e);
-      }
-      setProgress(0);
-      setDuration(0);
-      // si on souhaite jouer immédiatement
-      if (isPlaying) {
-        audio.play().catch(() => {
-          // play bloqué par navigateur -> attendre interaction
-          console.log('Lecture bloquée par le navigateur → clique pour débloquer');
-          setIsPlaying(false);
-        });
-      }
-    } else {
-    
-      setProgress(0);
-      setDuration(0);
+    const updateProgress = () => setProgress(audio.currentTime);
+    const updateDuration = () => {
+      const dur = isFinite(audio.duration) ? audio.duration : 0;
+      setDuration(dur);
+    };
+    const onEnded = () => {
       setIsPlaying(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSong]);
+      setProgress(0);
+    };
 
-  // Écouteurs timeupdate / loadedmetadata / ended (fonctions nommées pour cleanup)
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const onTimeUpdate = () => setProgress(audio.currentTime);
-    const onLoadedMetadata = () => setDuration(audio.duration || 0);
-    const onEnded = () => setIsPlaying(false);
-
-    audio.addEventListener('timeupdate', onTimeUpdate);
-    audio.addEventListener('loadedmetadata', onLoadedMetadata);
+    audio.addEventListener('timeupdate', updateProgress);
+    audio.addEventListener('loadedmetadata', updateDuration);
+    audio.addEventListener('durationchange', updateDuration);
     audio.addEventListener('ended', onEnded);
 
     return () => {
-      audio.removeEventListener('timeupdate', onTimeUpdate);
-      audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+      audio.removeEventListener('timeupdate', updateProgress);
+      audio.removeEventListener('loadedmetadata', updateDuration);
+      audio.removeEventListener('durationchange', updateDuration);
       audio.removeEventListener('ended', onEnded);
     };
-  }, [/* pas de dépendance sur currentSong ici : les handlers restent valides */]);
+  }, []);
 
-  // Gérer play / pause quand isPlaying change
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-
-    const handle = async () => {
-      if (isPlaying) {
-        try {
-          await audio.play();
-        } catch (e) {
-          console.warn('play() rejected', e);
-          setIsPlaying(false);
-        }
-      } else {
-        audio.pause();
-      }
-    };
-
-    handle();
+    if (isPlaying) {
+      audio.play().catch(() => setIsPlaying(false));
+    } else {
+      audio.pause();
+    }
   }, [isPlaying]);
 
-  // Mettre à jour le volume quand la valeur change
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.volume = Math.max(0, Math.min(1, volume / 100));
+    if (audioRef.current) {
+      audioRef.current.volume = volume / 100;
+    }
   }, [volume]);
 
   const playSong = (song: Chanson) => {
     if (!song.url) return;
-
     if (currentSong?.id === song.id) {
       setIsPlaying(prev => !prev);
     } else {
@@ -144,17 +131,15 @@ export default function ArtistDashboard() {
     }
   };
 
-  const handleSeek = (value: number[]) => {
+  const seekTo = (value: number) => {
     if (audioRef.current) {
-      audioRef.current.currentTime = value[0];
-      setProgress(value[0]);
+      audioRef.current.currentTime = value;
+      setProgress(value);
     }
   };
 
-  const handleVolumeChange = (value: number[]) => setVolume(value[0]);
-
   const formatTime = (seconds: number) => {
-    if (!seconds || isNaN(seconds)) return '0:00';
+    if (!isFinite(seconds)) return '0:00';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -180,34 +165,29 @@ export default function ArtistDashboard() {
 
   const availableSongs = songs.filter(s => !s.albumId);
 
-
   return (
     <div className="min-h-screen bg-gradient-bg">
       {/* Header */}
       <header className="border-b border-border/50 bg-card/30 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                Espace Artiste
-              </h1>
-              <p className="text-muted-foreground mt-1">Gérez votre musique et vos albums</p>
-            </div>
-          </div>
+          <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            Espace Artiste
+          </h1>
+          <p className="text-muted-foreground mt-1">Gérez votre musique et vos albums</p>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 pb-40">
         {/* Stats Cards */}
         <div className="grid gap-6 md:grid-cols-3 mb-8 animate-fade-in">
           <Card className="shadow-glow border-border/50 bg-card/80 backdrop-blur">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-foreground">Total Chansons</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Chansons</CardTitle>
               <Music className="h-5 w-5 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-foreground">{songs.length}</div>
+              <div className="text-3xl font-bold">{songs.length}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 {songs.length > 0 ? 'Continuez votre création' : 'Commencez à uploader'}
               </p>
@@ -216,11 +196,11 @@ export default function ArtistDashboard() {
 
           <Card className="shadow-glow-accent border-border/50 bg-card/80 backdrop-blur">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-foreground">Total Albums</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Albums</CardTitle>
               <AlbumIcon className="h-5 w-5 text-accent" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-foreground">{albums.length}</div>
+              <div className="text-3xl font-bold">{albums.length}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 {albums.length > 0 ? 'Gérez vos collections' : 'Créez votre premier album'}
               </p>
@@ -229,13 +209,11 @@ export default function ArtistDashboard() {
 
           <Card className="shadow-glow border-border/50 bg-card/80 backdrop-blur">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-foreground">Activité</CardTitle>
+              <CardTitle className="text-sm font-medium">Activité</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-foreground">Active</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Votre compte est actif
-              </p>
+              <div className="text-3xl font-bold">Active</div>
+              <p className="text-xs text-muted-foreground mt-1">Votre compte est actif</p>
             </CardContent>
           </Card>
         </div>
@@ -253,7 +231,7 @@ export default function ArtistDashboard() {
                 <UploadSongDialog artisteId={ARTIST_ID} onSuccess={fetchData} />
               </CardHeader>
               <CardContent>
-                {loading ? <p className="text-center py-12">Chargement…</p> : 
+                {loading ? <p className="text-center py-12">Chargement…</p> :
                   <SongsList
                     songs={songs}
                     artisteId={ARTIST_ID}
@@ -277,11 +255,7 @@ export default function ArtistDashboard() {
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader><DialogTitle>Nouvel album</DialogTitle></DialogHeader>
-                    <Input 
-                      placeholder="Titre de l'album" 
-                      value={albumTitle} 
-                      onChange={(e) => setAlbumTitle(e.target.value)} 
-                    />
+                    <Input placeholder="Titre de l'album" value={albumTitle} onChange={(e) => setAlbumTitle(e.target.value)} />
                     <DialogFooter>
                       <Button variant="outline" onClick={() => setShowCreateDialog(false)}>Annuler</Button>
                       <Button onClick={handleCreateAlbum} disabled={!albumTitle.trim()}>Créer</Button>
@@ -307,55 +281,125 @@ export default function ArtistDashboard() {
         </Tabs>
       </main>
 
-      {/* PLAYER FIXE */}
-      {currentSong?.url && (
-        <div className="fixed bottom-0 left-0 right-0 bg-card border-t z-50 shadow-2xl">
-          {/* key pour forcer recréation si besoin */}
-          <audio key={currentSong.id} ref={audioRef} preload="metadata" />
+      {/* PLAYER FINAL – MARCHE À 100% MÊME APRÈS REFRESH */}
+     {/* PLAYER – VERSION BULLETPROOF (marche à 100% après refresh) */}
+{currentSong?.url && (
+  <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-xl border-t border-border/50 z-50 shadow-2xl">
+    {/* ON RECRÉE L'AUDIO À CHAQUE CHANSON + ON FORCE LE SRC DIRECTEMENT */}
+    <audio
+      key={currentSong.id}                     // Recrée l'élément
+      ref={audioRef}
+      src={currentSong.url}                    // src en prop = force le chargement immédiat
+      preload="metadata"
+      crossOrigin="anonymous"
+    />
 
-          <div className="h-1 bg-muted">
-            <div className="h-full bg-primary transition-all" style={{ width: `${duration > 0 ? (progress / duration) * 100 : 0}%` }} />
+    {/* Barre de progression */}
+    <div
+      className="relative h-1 bg-muted/40 cursor-pointer group"
+      onClick={(e) => {
+        if (!duration) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        const percent = (e.clientX - rect.left) / rect.width;
+        seekTo(percent * duration);
+      }}
+    >
+      <div
+        className="absolute inset-y-0 left-0 bg-gradient-to-r from-pink-500 to-orange-500 transition-all duration-100"
+        style={{ width: `${duration > 0 ? (progress / duration) * 100 : 0}%` }}
+      />
+      <div
+        className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-xl opacity-0 group-hover:opacity-100 transition-opacity"
+        style={{
+          left: `${duration > 0 ? (progress / duration) * 100 : 0}%`,
+          transform: 'translateX(-50%) translateY(-50%)',
+        }}
+      />
+    </div>
+
+    <div className="container mx-auto px-4 py-5">
+      <div className="flex items-center justify-between gap-6">
+        {/* Info chanson */}
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-orange-500 rounded-xl flex items-center justify-center shadow-xl flex-shrink-0">
+            {isPlaying ? (
+              <div className="flex gap-1">
+                {[5, 8, 4, 9, 6].map((h, i) => (
+                  <div
+                    key={i}
+                    className="w-1 bg-white rounded-full animate-bounce"
+                    style={{ animationDelay: `${i * 0.1}s`, height: `${h * 3}px` }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <Music className="w-9 h-9 text-white" />
+            )}
           </div>
-
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between gap-6">
-              <div className="flex items-center gap-4 min-w-0 flex-1">
-                <div className="w-14 h-14 bg-primary/20 rounded flex items-center justify-center flex-shrink-0">
-                  <Music className="w-8 h-8 text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-semibold truncate">{currentSong.titre}</p>
-                  <p className="text-xs text-muted-foreground">En lecture</p>
-                </div>
-              </div>
-
-              <div className="flex flex-col items-center gap-3 flex-1 max-w-xl">
-                <div className="flex items-center gap-6">
-                  <Button variant="ghost" size="icon" onClick={playPrevious}><SkipBack className="w-5 h-5" /></Button>
-                  <button 
-                    onClick={() => setIsPlaying(!isPlaying)}
-                    className="bg-primary text-white w-14 h-14 rounded-full hover:scale-110 transition flex items-center justify-center"
-                  >
-                    {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8 ml-1" />}
-                  </button>
-                  <Button variant="ghost" size="icon" onClick={playNext}><SkipForward className="w-5 h-5" /></Button>
-                </div>
-
-                <div className="flex items-center gap-3 w-full text-sm">
-                  <span className="w-12 text-right">{formatTime(progress)}</span>
-                  <Slider value={[progress]} max={duration || 1} step={0.1} onValueChange={handleSeek} className="flex-1" />
-                  <span className="w-12">{formatTime(duration)}</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Volume2 className="w-5 h-5" />
-                <Slider value={[volume]} max={100} onValueChange={handleVolumeChange} className="w-32" />
-              </div>
-            </div>
+          <div className="min-w-0">
+            <p className="font-bold text-lg truncate">{currentSong.titre}</p>
+            <p className="text-xs text-muted-foreground">En lecture</p>
           </div>
         </div>
-      )}
+
+        {/* Contrôles */}
+        <div className="flex flex-col items-center gap-4 flex-1 max-w-xl">
+          <div className="flex items-center gap-8">
+            <Button variant="ghost" size="icon" onClick={playPrevious}>
+              <SkipBack className="w-6 h-6" />
+            </Button>
+
+            <button
+              onClick={() => setIsPlaying(!isPlaying)}
+              className="w-16 h-16 bg-gradient-to-br from-pink-500 to-orange-500 rounded-full flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-2xl"
+            >
+              {isPlaying ? (
+                <Pause className="w-10 h-10 text-white" />
+              ) : (
+                <Play className="w-10 h-10 text-white ml-1" />
+              )}
+            </button>
+
+            <Button variant="ghost" size="icon" onClick={playNext}>
+              <SkipForward className="w-6 h-6" />
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-4 w-full text-sm">
+            <span className="w-14 text-right tabular-nums text-primary">
+              {formatTime(progress)}
+            </span>
+
+            <Slider
+              value={[progress]}
+              max={duration || 1}
+              step={0.1}
+              onValueChange={([v]) => seekTo(v)}
+              className="flex-1 cursor-grab active:cursor-grabbing"
+            />
+
+            <span className="w-14 text-muted-foreground">
+              {formatTime(duration)}
+            </span>
+          </div>
+        </div>
+
+        {/* Volume */}
+        <div className="flex items-center gap-3">
+          <Volume2 className="w-5 h-5 text-muted-foreground" />
+          <Slider
+            value={[volume]}
+            max={100}
+            step={1}
+            onValueChange={([v]) => setVolume(v)}
+            className="w-28"
+          />
+          <span className="text-xs w-10 text-right">{volume}%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }

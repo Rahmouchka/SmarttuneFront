@@ -2,7 +2,7 @@
 import { Album, Chanson } from '@/types/music';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Play, Pause, Trash2, Plus, X } from 'lucide-react';
+import { Play, Pause, Trash2, Plus, X, Music } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -76,19 +76,28 @@ export function AlbumsList({
       {/* Liste des albums */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {albums.map((album) => (
-          <Card key={album.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="text-xl">{album.titre}</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    {album.chansons?.length || 0} chanson{album.chansons?.length !== 1 ? 's' : ''}
+          <Card 
+            key={album.id} 
+            className="group hover:shadow-glow transition-all duration-300 hover:border-primary/50 bg-card/80 backdrop-blur overflow-hidden"
+          >
+            <CardHeader className="relative">
+              {/* Effet gradient background */}
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              
+              <div className="flex justify-between items-start relative z-10">
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="text-xl bg-gradient-primary bg-clip-text text-transparent group-hover:text-foreground transition-all">
+                    {album.titre}
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
+                    <span className="font-medium text-primary">{album.chansons?.length || 0}</span>
+                    <span>chanson{album.chansons?.length !== 1 ? 's' : ''}</span>
                   </p>
                 </div>
                 <Button 
                   size="sm" 
                   variant="ghost" 
-                  className="text-destructive" 
+                  className="text-destructive hover:bg-destructive/10 flex-shrink-0" 
                   onClick={() => setAlbumToDelete(album)}
                 >
                   <Trash2 className="w-4 h-4" />
@@ -98,33 +107,44 @@ export function AlbumsList({
 
             <CardContent>
               {/* Liste des chansons dans l'album */}
-              <div className="space-y-2 mb-4 max-h-48 overflow-y-auto">
+              <div className="space-y-2 mb-4 max-h-48 overflow-y-auto custom-scrollbar">
                 {album.chansons?.length ? (
                   album.chansons.map((song) => {
                     const playing = currentSongId === song.id;
                     return (
                       <div
                         key={song.id}
-                        className={`flex items-center justify-between p-3 rounded transition cursor-pointer ${
-                          playing ? 'bg-accent/50' : 'bg-card/50 hover:bg-accent/30'
+                        className={`group/song flex items-center justify-between p-3 rounded-lg transition-all duration-200 cursor-pointer ${
+                          playing 
+                            ? 'bg-gradient-to-r from-primary/15 to-accent/10 border border-primary/30' 
+                            : 'bg-card/50 hover:bg-card/80 border border-transparent hover:border-primary/20'
                         }`}
                         onClick={() => song.url && onPlaySong(song)}
                       >
-                        <span className="text-sm font-medium truncate pr-2">
+                        <span className={`text-sm font-medium truncate pr-2 ${playing ? 'text-primary' : ''}`}>
                           {song.titre}
                         </span>
                         {song.url && (
-                          playing && isPlaying 
-                            ? <Pause className="w-4 h-4 text-primary flex-shrink-0" />
-                            : <Play className="w-4 h-4 text-primary flex-shrink-0" />
+                          <div className={`flex-shrink-0 ${playing ? '' : 'opacity-0 group-hover/song:opacity-100'} transition-opacity`}>
+                            {playing && isPlaying ? (
+                              <div className="flex gap-0.5 items-end h-4">
+                                <div className="w-0.5 bg-primary rounded-full animate-[wave_0.8s_ease-in-out_infinite] h-2"></div>
+                                <div className="w-0.5 bg-primary rounded-full animate-[wave_0.8s_ease-in-out_infinite_0.15s] h-4"></div>
+                                <div className="w-0.5 bg-primary rounded-full animate-[wave_0.8s_ease-in-out_infinite_0.3s] h-3"></div>
+                              </div>
+                            ) : (
+                              <Play className="w-4 h-4 text-primary" />
+                            )}
+                          </div>
                         )}
                       </div>
                     );
                   })
                 ) : (
-                  <p className="text-center text-muted-foreground text-sm py-6">
-                    Aucune chanson
-                  </p>
+                  <div className="text-center text-muted-foreground text-sm py-8">
+                    <Music className="w-10 h-10 mx-auto mb-2 opacity-20" />
+                    <p>Aucune chanson</p>
+                  </div>
                 )}
               </div>
 
@@ -132,7 +152,7 @@ export function AlbumsList({
               <div className="flex gap-2">
                 <Button
                   variant="outline"
-                  className="flex-1"
+                  className="flex-1 hover:bg-primary/10 hover:text-primary hover:border-primary/50 transition-all"
                   onClick={() => {
                     setAlbumToAdd(album);
                     setSelectedIds([]);
@@ -144,7 +164,7 @@ export function AlbumsList({
 
                 <Button
                   variant="outline"
-                  className="flex-1"
+                  className="flex-1 hover:bg-accent/10 hover:text-accent hover:border-accent/50 transition-all"
                   onClick={() => {
                     setAlbumToManage(album);
                     setShowManageDialog(true);
