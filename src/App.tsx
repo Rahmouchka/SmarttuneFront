@@ -15,6 +15,11 @@ import UserDashboard from "./pages/user/dashboard/UserDashboard.tsx"
 import ArtistDashboard from "./pages/artist/ArtistDashboard.tsx"
 import AdminDashboard from "./pages/admin/dashboard/AdminDashboard.tsx"
 import ArtistPending from "./pages/register/ArtistPending.tsx"
+import AdminLayout from "@/pages/admin/AdminLayout.tsx";
+import ArtistRequests from "@/pages/admin/ArtistRequests.tsx";
+import Reports from "@/pages/admin/Reports.tsx";
+import UsersList from "@/pages/admin/UsersList.tsx";
+import ArtistsList from "@/pages/admin/ArtistsList.tsx";
 
 const queryClient = new QueryClient();
 
@@ -36,9 +41,16 @@ const App = () => (
 
           <Route path="/user/dashboard" element={<UserDashboard />} />
           <Route path="/artist/dashboard" element={<ArtistDashboard />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
+
+          <Route element={<AdminLayout />}>
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/requests" element={<ArtistRequests />} />
+            <Route path="/admin/reports" element={<Reports />} />
+            <Route path="/admin/users" element={<UsersList />} />
+            <Route path="/admin/artists" element={<ArtistsList />} />
+          </Route>
         </Routes>
       </BrowserRouter>
     </TooltipProvider>

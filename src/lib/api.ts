@@ -1,7 +1,71 @@
 // src/lib/api.ts
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8082/api';
 
+// Fonction helper pour ajouter automatiquement le token JWT
+const getAuthHeaders = (): HeadersInit => {
+  const userJson = localStorage.getItem('user');
+  if (!userJson) return {};
+
+  try {
+    const token = JSON.parse(userJson).token;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
+};
+
+// Fonction générique ultra-robuste (gère JSON, texte vide, erreurs, etc.)
+const apiRequest = async (url: string, options: RequestInit = {}) => {
+  const headers: HeadersInit = {
+    ...options.headers,
+    ...getAuthHeaders(),
+  };
+
+  // Pour FormData, on ne met pas Content-Type (le navigateur le fait tout seul)
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+  }
+
+  const response = await fetch(`${API_BASE_URL}${url}`, {
+    ...options,
+    headers,
+  });
+
+  const text = await response.text();
+
+  if (!response.ok) {
+    throw new Error(text || `Erreur HTTP ${response.status}`);
+  }
+
+  if (!text.trim()) return { success: true };
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { success: true, raw: text };
+  }
+};
+
 export const api = {
+  // Fonctions génériques (indispensables pour l'admin)
+  get: <T = unknown>(url: string): Promise<T> =>
+      apiRequest(url) as Promise<T>,
+
+  post: <T = unknown>(url: string, data?: BodyInit | Record<string, any>): Promise<T> =>
+      apiRequest(url, {
+        method: 'POST',
+        body: data instanceof FormData ? data : data ? JSON.stringify(data) : undefined,
+      }) as Promise<T>,
+
+  put: <T = unknown>(url: string, data?: BodyInit | Record<string, any>): Promise<T> =>
+      apiRequest(url, {
+        method: 'PUT',
+        body: data instanceof FormData ? data : data ? JSON.stringify(data) : undefined,
+      }) as Promise<T>,
+
+  delete: <T = unknown>(url: string): Promise<T> =>
+      apiRequest(url, { method: 'DELETE' }) as Promise<T>,
+
   // ========================
   // SONGS ENDPOINTS
   // ========================

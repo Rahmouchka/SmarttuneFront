@@ -36,30 +36,26 @@ const Login: React.FC = () => {
       });
 
       if (!res.ok) {
-        // FORCER LE MESSAGE CLAIR
         throw new Error("Email ou mot de passe incorrect");
       }
 
-      const user: UserResponse = await res.json();
+      const user = await res.json();
 
-      // REDIRECTION SELON RÔLE
-      switch (user.role) {
-        case "USER":
-          navigate("/user/dashboard");
-          break;
-        case "ARTIST":
-          navigate("/artist/dashboard");
-          break;
-        case "ADMIN":
-          navigate("/admin/dashboard");
-          break;
-        default:
-          navigate("/user/dashboard");
+      localStorage.setItem('user', JSON.stringify(user));
+
+      console.log("User sauvegardé :", user); // Pour vérifier
+
+      // Redirection selon rôle
+      if (user.role === "ADMIN") {
+        navigate("/admin/dashboard");
+      } else if (user.role === "ARTIST") {
+        navigate("/artist/dashboard");
+      } else {
+        navigate("/user/dashboard");
       }
 
       toast({ title: "Connexion réussie !" });
     } catch (error) {
-      // MESSAGE UNIQUE ET SÉCURISÉ
       toast({
         title: "Erreur de connexion",
         description: "Email ou mot de passe incorrect",
