@@ -1,30 +1,38 @@
+import { AlbumResponse, ChansonResponse } from "@/types/music";
+
 // src/lib/api.ts
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8082/api';
 
 export const api = {
   // ========================
-  // SONGS ENDPOINTS
+  // UPLOAD D'UNE CHANSON
   // ========================
-
   uploadSong: async (artisteId: number, formData: FormData) => {
     const response = await fetch(`${API_BASE_URL}/artiste/${artisteId}/chansons`, {
       method: 'POST',
-      body: formData,
+      body: formData, // Pas de headers Content-Type → fetch le gère automatiquement pour multipart
     });
 
     if (!response.ok) {
       const text = await response.text();
       throw new Error(text || 'Échec de l’upload de la chanson');
     }
-    return response.json();
+
+    return response.json(); // Retourne l'objet Chanson complet
   },
 
-  getArtistSongs: async (artisteId: number) => {
+  // ========================
+  // RÉCUPÉRER LES CHANSONS DE L'ARTISTE
+  // ========================
+  getArtistSongs: async (artisteId: number): Promise<ChansonResponse[]> => {
     const response = await fetch(`${API_BASE_URL}/artiste/${artisteId}/chansons`);
     if (!response.ok) throw new Error('Impossible de charger les chansons');
     return response.json();
   },
 
+  // ========================
+  // SUPPRIMER UNE CHANSON
+  // ========================
   deleteSong: async (artisteId: number, chansonId: number) => {
     const response = await fetch(
       `${API_BASE_URL}/artiste/${artisteId}/chansons/${chansonId}`,
@@ -35,16 +43,18 @@ export const api = {
       const text = await response.text();
       throw new Error(text || 'Impossible de supprimer la chanson');
     }
-    // Pas de JSON attendu sur DELETE → on ne fait rien
+    // Le backend retourne un message texte → pas besoin de json()
   },
 
   // ========================
-  // ALBUMS ENDPOINTS
+  // CRÉER UN ALBUM (avec ou sans couverture)
   // ========================
-
-  createAlbum: async (artisteId: number, titre: string) => {
+  createAlbum: async (artisteId: number, titre: string, couverture?: File) => {
     const formData = new FormData();
     formData.append('titre', titre);
+    if (couverture) {
+      formData.append('couverture', couverture);
+    }
 
     const response = await fetch(`${API_BASE_URL}/artiste/${artisteId}/albums`, {
       method: 'POST',
@@ -55,16 +65,22 @@ export const api = {
       const text = await response.text();
       throw new Error(text || 'Échec de la création de l’album');
     }
-    return response.json();
+
+    return response.json(); // Retourne l'objet Album
   },
 
-  getArtistAlbums: async (artisteId: number) => {
+  // ========================
+  // RÉCUPÉRER LES ALBUMS DE L'ARTISTE
+  // ========================
+  getArtistAlbums: async (artisteId: number): Promise<AlbumResponse[]> => {
     const response = await fetch(`${API_BASE_URL}/artiste/${artisteId}/albums`);
     if (!response.ok) throw new Error('Impossible de charger les albums');
     return response.json();
   },
 
-  // LA FONCTION QUI POSAIT PROBLÈME → MAINTENANT 100% ROBUSTE
+  // ========================
+  // AJOUTER DES CHANSONS À UN ALBUM
+  // ========================
   addSongsToAlbum: async (artisteId: number, albumId: number, chansonIds: number[]) => {
     const response = await fetch(
       `${API_BASE_URL}/artiste/${artisteId}/albums/${albumId}/chansons`,
@@ -73,31 +89,40 @@ export const api = {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(chansonIds), // ex: [1, 3, 5]
+        body: JSON.stringify(chansonIds),
       }
     );
 
-    const text = await response.text();
-
     if (!response.ok) {
-      console.error('Erreur serveur lors de l’ajout des chansons :', text);
+      const text = await response.text();
       throw new Error(text || 'Impossible d’ajouter les chansons à l’album');
     }
 
-    // Si le backend ne retourne rien → c’est OK
-    if (!text.trim()) {
-      return { success: true };
-    }
-
-    // Sinon on essaie de parser le JSON
-    try {
-      return JSON.parse(text);
-    } catch (e) {
-      console.warn('Réponse non-JSON reçue mais requête réussie :', text);
-      return { success: true };
-    }
+    // Le backend retourne un message texte simple
+    const text = await response.text();
+    return text || 'Chansons ajoutées avec succès';
   },
 
+  // ========================
+  // RETIRER UNE CHANSON D'UN ALBUM
+  // ========================
+  removeSongFromAlbum: async (artisteId: number, albumId: number, chansonId: number) => {
+    const response = await fetch(
+      `${API_BASE_URL}/artiste/${artisteId}/albums/${albumId}/chansons/${chansonId}`,
+      { method: 'DELETE' }
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || 'Impossible de retirer la chanson de l’album');
+    }
+
+    return response.json(); // Retourne l'album mis à jour
+  },
+
+  // ========================
+  // SUPPRIMER UN ALBUM
+  // ========================
   deleteAlbum: async (artisteId: number, albumId: number) => {
     const response = await fetch(
       `${API_BASE_URL}/artiste/${artisteId}/albums/${albumId}`,
@@ -108,6 +133,6 @@ export const api = {
       const text = await response.text();
       throw new Error(text || 'Impossible de supprimer l’album');
     }
-    // Pas de JSON attendu
+    // Message texte simple → pas de json()
   },
 };
