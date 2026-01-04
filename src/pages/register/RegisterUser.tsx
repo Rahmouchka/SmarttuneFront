@@ -9,8 +9,20 @@ import { Input } from "@/components/ui/input.tsx";
 import { Label } from "@/components/ui/label.tsx";
 import { useToast } from "@/hooks/use-toast.ts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
-import { Users,User, Phone, Calendar,Eye, EyeOff, Mail, Lock, ArrowLeft } from "lucide-react";
+import { Users, User, Phone, Calendar, Eye, EyeOff, Mail, Lock, ArrowLeft } from "lucide-react";
 import logo from "@/assets/smarttune-logo.png";
+
+// Fonction pour calculer l'âge à partir d'une date de naissance
+const calculateAge = (birthDate: string): number => {
+  const today = new Date();
+  const birth = new Date(birthDate);
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+};
 
 const userSchema = z.object({
   firstName: z.string()
@@ -22,15 +34,18 @@ const userSchema = z.object({
       .min(2, "Le nom doit contenir au moins 2 caractères")
       .max(50)
       .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, "Nom invalide"),
+
   username: z.string()
     .min(3, "Le nom d'utilisateur doit contenir au moins 3 caractères")
     .max(30, "Le nom d'utilisateur ne peut pas dépasser 30 caractères")
     .regex(/^[a-zA-Z0-9_-]+$/, "Le nom d'utilisateur ne peut contenir que des lettres, chiffres, _ et -"),
+
   email: z.string()
     .email("Email invalide")
     .max(255, "L'email ne peut pas dépasser 255 caractères")
     .toLowerCase()
     .trim(),
+
   password: z.string()
     .min(8, "Le mot de passe doit contenir au moins 8 caractères")
     .max(100, "Le mot de passe ne peut pas dépasser 100 caractères")
@@ -38,16 +53,19 @@ const userSchema = z.object({
     .regex(/[a-z]/, "Le mot de passe doit contenir au moins une minuscule")
     .regex(/[0-9]/, "Le mot de passe doit contenir au moins un chiffre")
     .regex(/[^A-Za-z0-9]/, "Le mot de passe doit contenir au moins un caractère spécial"),
+
   confirmPassword: z.string(),
-  age: z.coerce.number()
-      .int()
-      .min(13)
-      .max(100),
+
+  // Date de naissance au lieu de l'âge
+  birthDate: z.string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide")
+    .refine((date) => calculateAge(date) >= 13, "Vous devez avoir au moins 13 ans")
+    .refine((date) => calculateAge(date) <= 100, "Date de naissance invalide"),
 
   gender: z.enum(["F", "H"], { message: "Veuillez sélectionner un genre" }),
 
   phone: z.string()
-      .regex(/^(\+216|00216)?[0-9]{8}$/, "Numéro invalide (ex: 20123456)")
+      .regex(/^(\+216|00216)?[0-9]{8}$/, "Numéro invalide (ex: 20123456 ou +21620123456)")
       .optional()
       .or(z.literal("")),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -64,15 +82,14 @@ const RegisterUser = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const { register, handleSubmit, formState: { errors },setValue,watch } = useForm<UserFormData>({
+  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
   });
 
   const onSubmit = async (data: UserFormData) => {
     setIsLoading(true);
-    
+
     try {
-      // TODO: Intégrer avec votre API Spring Boot
       const response = await fetch("http://localhost:8082/api/auth/register/user", {
         method: "POST",
         headers: {
@@ -84,14 +101,14 @@ const RegisterUser = () => {
           nom: data.lastName,
           email: data.email,
           password: data.password,
-          age: data.age,
+          dateNaissance: data.birthDate,  // ← CORRIGÉ : champ exact attendu par le backend
           genre: data.gender,
           numTel: data.phone || null,
         }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || "Erreur lors de l'inscription");
       }
 
@@ -100,7 +117,6 @@ const RegisterUser = () => {
         description: "Vérifiez votre email pour confirmer votre compte.",
       });
 
-      // Rediriger vers la page de confirmation ou de connexion
       navigate("/login");
     } catch (error) {
       toast({
@@ -157,25 +173,51 @@ const RegisterUser = () => {
                 <p className="text-sm text-destructive">{errors.username.message}</p>
               )}
             </div>
+
             {/* Prénom & Nom */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName">Prénom</Label>
-                <Input {...register("firstName")} placeholder="Jean" />
+                <Label htmlFor="firstName" className="text-foreground">
+                  Prénom
+                </Label>
+                <Input
+                  id="firstName"
+                  placeholder="Jean"
+                  className={`bg-background border-border ${errors.firstName ? 'border-destructive' : ''}`}
+                  {...register("firstName")}
+                  disabled={isLoading}
+                />
                 {errors.firstName && <p className="text-sm text-destructive">{errors.firstName.message}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName">Nom</Label>
-                <Input {...register("lastName")} placeholder="Dupont" />
+                <Label htmlFor="lastName" className="text-foreground">
+                  Nom
+                </Label>
+                <Input
+                  id="lastName"
+                  placeholder="Dupont"
+                  className={`bg-background border-border ${errors.lastName ? 'border-destructive' : ''}`}
+                  {...register("lastName")}
+                  disabled={isLoading}
+                />
                 {errors.lastName && <p className="text-sm text-destructive">{errors.lastName.message}</p>}
               </div>
             </div>
 
-            {/* Âge */}
+            {/* Date de naissance */}
             <div className="space-y-2">
-              <Label htmlFor="age">Âge</Label>
-              <Input type="number" {...register("age")} placeholder="18" />
-              {errors.age && <p className="text-sm text-destructive">{errors.age.message}</p>}
+              <Label htmlFor="birthDate" className="text-foreground flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
+                Date de naissance
+              </Label>
+              <Input
+                id="birthDate"
+                type="date"
+                className={`bg-background border-border ${errors.birthDate ? 'border-destructive' : ''}`}
+                {...register("birthDate")}
+                disabled={isLoading}
+              />
+              {errors.birthDate && <p className="text-sm text-destructive">{errors.birthDate.message}</p>}
             </div>
 
             {/* Genre */}
@@ -185,9 +227,8 @@ const RegisterUser = () => {
                 Genre
               </Label>
               <Select
-                  onValueChange={(value) => setValue("gender", value as "F" | "H")}
-                  defaultValue={watch("gender")}
-                  disabled={isLoading}
+                onValueChange={(value) => setValue("gender", value as "F" | "H")}
+                disabled={isLoading}
               >
                 <SelectTrigger className={`bg-background border-border ${errors.gender ? 'border-destructive' : ''}`}>
                   <SelectValue placeholder="Sélectionnez votre genre" />
@@ -202,8 +243,17 @@ const RegisterUser = () => {
 
             {/* Téléphone */}
             <div className="space-y-2">
-              <Label htmlFor="phone">Téléphone (optionnel)</Label>
-              <Input type="tel" {...register("phone")} placeholder="+216 20 123 456" />
+              <Label htmlFor="phone" className="text-foreground">
+                Téléphone (optionnel)
+              </Label>
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="+216 20 123 456"
+                className={`bg-background border-border ${errors.phone ? 'border-destructive' : ''}`}
+                {...register("phone")}
+                disabled={isLoading}
+              />
               {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
             </div>
 

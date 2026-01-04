@@ -10,11 +10,23 @@ import { Label } from "@/components/ui/label.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";
 import { useToast } from "@/hooks/use-toast.ts";
-import { User,Users, Phone, Calendar,Eye, EyeOff, Music, Mail, Lock, ArrowLeft, Upload, FileText } from "lucide-react";
+import { User, Users, Phone, Calendar, Eye, EyeOff, Music, Mail, Lock, ArrowLeft, Upload, FileText } from "lucide-react";
 import logo from "@/assets/smarttune-logo.png";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_FILE_TYPES = ["application/pdf"];
+
+// Fonction utilitaire pour calculer l'âge à partir d'une date de naissance
+const calculateAge = (birthDate: string): number => {
+  const today = new Date();
+  const birth = new Date(birthDate);
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+};
 
 const artistSchema = z.object({
   firstName: z.string()
@@ -26,15 +38,18 @@ const artistSchema = z.object({
       .min(2, "Le nom doit contenir au moins 2 caractères")
       .max(50, "Le nom ne peut pas dépasser 50 caractères")
       .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, "Nom invalide"),
+
   username: z.string()
     .min(3, "Le nom d'utilisateur doit contenir au moins 3 caractères")
     .max(30, "Le nom d'utilisateur ne peut pas dépasser 30 caractères")
     .regex(/^[a-zA-Z0-9_-]+$/, "Le nom d'utilisateur ne peut contenir que des lettres, chiffres, _ et -"),
+
   email: z.string()
     .email("Email invalide")
     .max(255, "L'email ne peut pas dépasser 255 caractères")
     .toLowerCase()
     .trim(),
+
   password: z.string()
     .min(8, "Le mot de passe doit contenir au moins 8 caractères")
     .max(100, "Le mot de passe ne peut pas dépasser 100 caractères")
@@ -42,11 +57,20 @@ const artistSchema = z.object({
     .regex(/[a-z]/, "Le mot de passe doit contenir au moins une minuscule")
     .regex(/[0-9]/, "Le mot de passe doit contenir au moins un chiffre")
     .regex(/[^A-Za-z0-9]/, "Le mot de passe doit contenir au moins un caractère spécial"),
+
   confirmPassword: z.string(),
-  age: z.coerce.number()
-      .int()
-      .min(13, "Vous devez avoir au moins 13 ans")
-      .max(100, "Âge invalide"),
+
+  // Date de naissance au lieu de l'âge
+  birthDate: z.string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide")
+    .refine((date) => {
+      const age = calculateAge(date);
+      return age >= 13;
+    }, "Vous devez avoir au moins 13 ans")
+    .refine((date) => {
+      const age = calculateAge(date);
+      return age <= 100;
+    }, "Date de naissance invalide"),
 
   gender: z.enum(["F", "H"], { message: "Veuillez sélectionner un genre" }),
 
@@ -54,9 +78,11 @@ const artistSchema = z.object({
       .regex(/^(\+216|00216)?[0-9]{8}$/, "Numéro de téléphone tunisien invalide (ex: 20123456 ou +21620123456)")
       .optional()
       .or(z.literal("")),
+
   bio: z.string()
     .min(50, "La biographie doit contenir au moins 50 caractères")
     .max(1000, "La biographie ne peut pas dépasser 1000 caractères"),
+
   artistDocument: z.any()
     .refine((files) => files?.length === 1, "Veuillez télécharger un document")
     .refine(
@@ -82,34 +108,32 @@ const RegisterArtist = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [fileName, setFileName] = useState<string>("");
 
-  const { register, handleSubmit, formState: { errors },setValue, watch } = useForm<ArtistFormData>({
+  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<ArtistFormData>({
     resolver: zodResolver(artistSchema),
   });
 
   const watchFile = watch("artistDocument");
 
-  const onSubmit = async (data: ArtistFormData) => {
+ const onSubmit = async (data: ArtistFormData) => {
     setIsLoading(true);
 
     try {
       const formData = new FormData();
 
-      // MAPPING CORRECT
       formData.append("username", data.username);
-      formData.append("prenom", data.firstName);     // firstName → prenom
-      formData.append("nom", data.lastName);         // lastName → nom
+      formData.append("prenom", data.firstName);
+      formData.append("nom", data.lastName);
       formData.append("email", data.email);
       formData.append("password", data.password);
-      formData.append("age", data.age.toString());
-      formData.append("genre", data.gender);         // "H" ou "F"
+      formData.append("dateNaissance", data.birthDate);  // ← CORRIGÉ : envoi direct de la date
+      formData.append("genre", data.gender);
       if (data.phone) formData.append("numTel", data.phone);
       formData.append("bio", data.bio);
-      formData.append("pdf", data.artistDocument[0]); // artistDocument → pdf
+      formData.append("pdf", data.artistDocument[0]);
 
       const response = await fetch("http://localhost:8082/api/auth/register/artist", {
         method: "POST",
         body: formData,
-        // PAS DE Content-Type → le navigateur l'ajoute
       });
 
       if (!response.ok) {
@@ -117,7 +141,6 @@ const RegisterArtist = () => {
         throw new Error(errorData.message || `Erreur ${response.status}`);
       }
 
-      const result = await response.json();
       toast({
         title: "Demande envoyée !",
         description: "Votre compte artiste est en attente de validation.",
@@ -186,6 +209,7 @@ const RegisterArtist = () => {
                 <p className="text-sm text-destructive">{errors.username.message}</p>
               )}
             </div>
+
             {/* Prénom & Nom */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -220,23 +244,20 @@ const RegisterArtist = () => {
               </div>
             </div>
 
-            {/* Âge */}
+            {/* Date de naissance */}
             <div className="space-y-2">
-              <Label htmlFor="age" className="text-foreground flex items-center gap-2">
+              <Label htmlFor="birthDate" className="text-foreground flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
-                Âge
+                Date de naissance
               </Label>
               <Input
-                  id="age"
-                  type="number"
-                  placeholder="18"
-                  min="13"
-                  max="100"
-                  className={`bg-background border-border ${errors.age ? 'border-destructive' : ''}`}
-                  {...register("age")}
+                  id="birthDate"
+                  type="date"
+                  className={`bg-background border-border ${errors.birthDate ? 'border-destructive' : ''}`}
+                  {...register("birthDate")}
                   disabled={isLoading}
               />
-              {errors.age && <p className="text-sm text-destructive">{errors.age.message}</p>}
+              {errors.birthDate && <p className="text-sm text-destructive">{errors.birthDate.message}</p>}
             </div>
 
             {/* Genre */}
@@ -247,7 +268,6 @@ const RegisterArtist = () => {
               </Label>
               <Select
                   onValueChange={(value) => setValue("gender", value as "F" | "H")}
-                  defaultValue={watch("gender")}
                   disabled={isLoading}
               >
                 <SelectTrigger className={`bg-background border-border ${errors.gender ? 'border-destructive' : ''}`}>
@@ -277,6 +297,7 @@ const RegisterArtist = () => {
               />
               {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
             </div>
+
             {/* Email */}
             <div className="space-y-2">
               <Label htmlFor="email" className="text-foreground flex items-center gap-2">

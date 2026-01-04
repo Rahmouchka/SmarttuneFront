@@ -1,185 +1,207 @@
 // src/components/artist/AlbumsList.tsx
-import { Album, Chanson } from '@/types/music';
+import { AlbumResponse, ChansonResponse } from '@/types/music';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Play, Pause, Trash2, Plus, X, Music } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Play, Trash2, Plus, X, Music } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { api } from '@/lib/api';
 import { useState } from 'react';
 
 interface AlbumsListProps {
-  albums: Album[];
+  albums: AlbumResponse[];
   artisteId: number;
   onUpdate: () => void;
-  availableSongs: Chanson[];
-  onPlaySong: (song: Chanson) => void;
+  availableSongs: ChansonResponse[];
+  onPlaySong: (song: ChansonResponse) => void;
   currentSongId?: number;
   isPlaying: boolean;
 }
 
-export function AlbumsList({ 
-  albums, artisteId, onUpdate, availableSongs, 
-  onPlaySong, currentSongId, isPlaying 
+export function AlbumsList({
+  albums,
+  artisteId,
+  onUpdate,
+  availableSongs,
+  onPlaySong,
+  currentSongId,
+  isPlaying,
 }: AlbumsListProps) {
-
-  // États pour les dialogs
-  const [albumToAdd, setAlbumToAdd] = useState<Album | null>(null);
+  const [albumToAdd, setAlbumToAdd] = useState<AlbumResponse | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
-  const [albumToManage, setAlbumToManage] = useState<Album | null>(null);
-  const [showManageDialog, setShowManageDialog] = useState(false);
-
-  const [albumToDelete, setAlbumToDelete] = useState<Album | null>(null);
+  const [albumToDelete, setAlbumToDelete] = useState<AlbumResponse | null>(null);
 
   // Ajouter des chansons
   const handleAdd = async () => {
     if (!albumToAdd || selectedIds.length === 0) return;
-    await api.addSongsToAlbum(artisteId, albumToAdd.id, selectedIds);
-    setShowAddDialog(false);
-    setSelectedIds([]);
-    onUpdate();
+
+    try {
+      await api.addSongsToAlbum(artisteId, albumToAdd.id, selectedIds);
+      setShowAddDialog(false);
+      setSelectedIds([]);
+      onUpdate();
+    } catch (error) {
+      console.error('Erreur ajout chansons:', error);
+      onUpdate(); // recharge même en cas d'erreur
+    }
   };
 
-  // Supprimer une chanson de l'album
-  const handleRemoveSong = async (songId: number) => {
-    if (!albumToManage) return;
-    const remainingIds = albumToManage.chansons
-      ?.filter(s => s.id !== songId)
-      .map(s => s.id) || [];
-    await api.addSongsToAlbum(artisteId, albumToManage.id, remainingIds);
-    onUpdate();
+  // Retirer une chanson d'un album
+  const handleRemoveSong = async (albumId: number, chansonId: number) => {
+    try {
+      await api.removeSongFromAlbum(artisteId, albumId, chansonId);
+      onUpdate(); // recharge les données depuis le serveur
+    } catch (error) {
+      console.error('Erreur retrait chanson:', error);
+      onUpdate(); // recharge quand même pour synchroniser
+    }
   };
 
   // Supprimer l'album
   const handleDeleteAlbum = async () => {
     if (!albumToDelete) return;
-    await api.deleteAlbum(artisteId, albumToDelete.id);
-    setAlbumToDelete(null);
-    onUpdate();
+
+    try {
+      await api.deleteAlbum(artisteId, albumToDelete.id);
+      setAlbumToDelete(null);
+      onUpdate();
+    } catch (error) {
+      console.error('Erreur suppression album:', error);
+      onUpdate();
+    }
   };
 
   if (albums.length === 0) {
     return (
       <div className="text-center py-16 text-muted-foreground">
-        <div className="w-24 h-24 mx-auto mb-4 opacity-20 bg-gray-200 border-2 border-dashed rounded-xl" />
+        <div className="w-32 h-32 mx-auto mb-6 opacity-20 bg-gray-200 border-2 border-dashed rounded-xl" />
         <p className="text-lg">Aucun album créé</p>
+        <p className="text-sm mt-2">Créez votre premier album pour organiser vos chansons</p>
       </div>
     );
   }
 
   return (
     <>
-      {/* Liste des albums */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {albums.map((album) => (
-          <Card 
-            key={album.id} 
-            className="group hover:shadow-glow transition-all duration-300 hover:border-primary/50 bg-card/80 backdrop-blur overflow-hidden"
-          >
-            <CardHeader className="relative">
-              {/* Effet gradient background */}
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              
-              <div className="flex justify-between items-start relative z-10">
-                <div className="flex-1 min-w-0">
-                  <CardTitle className="text-xl bg-gradient-primary bg-clip-text text-transparent group-hover:text-foreground transition-all">
-                    {album.titre}
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
-                    <span className="font-medium text-primary">{album.chansons?.length || 0}</span>
-                    <span>chanson{album.chansons?.length !== 1 ? 's' : ''}</span>
-                  </p>
-                </div>
-                <Button 
-                  size="sm" 
-                  variant="ghost" 
-                  className="text-destructive hover:bg-destructive/10 flex-shrink-0" 
-                  onClick={() => setAlbumToDelete(album)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </CardHeader>
+      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        {albums.map((album) => {
+          const songCount = album.chansons.length;
 
-            <CardContent>
-              {/* Liste des chansons dans l'album */}
-              <div className="space-y-2 mb-4 max-h-48 overflow-y-auto custom-scrollbar">
-                {album.chansons?.length ? (
-                  album.chansons.map((song) => {
-                    const playing = currentSongId === song.id;
-                    return (
-                      <div
-                        key={song.id}
-                        className={`group/song flex items-center justify-between p-3 rounded-lg transition-all duration-200 cursor-pointer ${
-                          playing 
-                            ? 'bg-gradient-to-r from-primary/15 to-accent/10 border border-primary/30' 
-                            : 'bg-card/50 hover:bg-card/80 border border-transparent hover:border-primary/20'
-                        }`}
-                        onClick={() => song.url && onPlaySong(song)}
-                      >
-                        <span className={`text-sm font-medium truncate pr-2 ${playing ? 'text-primary' : ''}`}>
-                          {song.titre}
-                        </span>
-                        {song.url && (
-                          <div className={`flex-shrink-0 ${playing ? '' : 'opacity-0 group-hover/song:opacity-100'} transition-opacity`}>
-                            {playing && isPlaying ? (
-                              <div className="flex gap-0.5 items-end h-4">
-                                <div className="w-0.5 bg-primary rounded-full animate-[wave_0.8s_ease-in-out_infinite] h-2"></div>
-                                <div className="w-0.5 bg-primary rounded-full animate-[wave_0.8s_ease-in-out_infinite_0.15s] h-4"></div>
-                                <div className="w-0.5 bg-primary rounded-full animate-[wave_0.8s_ease-in-out_infinite_0.3s] h-3"></div>
-                              </div>
-                            ) : (
-                              <Play className="w-4 h-4 text-primary" />
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
+          return (
+            <Card key={album.id} className="overflow-hidden hover:shadow-2xl transition-all duration-300 group">
+              {/* Couverture */}
+              <div className="relative h-64 bg-gradient-to-br from-primary/20 to-accent/20">
+                {album.couvertureUrl ? (
+                  <img
+                    src={`${import.meta.env.VITE_API_URL || 'http://localhost:8082'}${album.couvertureUrl}`}
+                    alt={`Couverture de ${album.titre}`}
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
-                  <div className="text-center text-muted-foreground text-sm py-8">
-                    <Music className="w-10 h-10 mx-auto mb-2 opacity-20" />
-                    <p>Aucune chanson</p>
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Music className="w-24 h-24 text-muted-foreground/30" />
                   </div>
                 )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Button
+                  size="icon"
+                  variant="destructive"
+                  className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => setAlbumToDelete(album)}
+                >
+                  <Trash2 className="w-5 h-5" />
+                </Button>
               </div>
 
-              {/* Boutons d'action */}
-              <div className="flex gap-2">
+              <CardHeader>
+                <CardTitle className="text-2xl">{album.titre}</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  {songCount} chanson{songCount !== 1 ? 's' : ''}
+                </p>
+              </CardHeader>
+
+              <CardContent>
+                <div className="space-y-2 mb-6 max-h-64 overflow-y-auto custom-scrollbar">
+                  {songCount > 0 ? (
+                    album.chansons.map((song) => {
+                      const playing = currentSongId === song.id;
+
+                      return (
+                        <div
+                          key={song.id}
+                          className={`flex items-center justify-between p-3 rounded-lg transition-all cursor-pointer ${
+                            playing ? 'bg-primary/10 border border-primary/50' : 'hover:bg-accent/5'
+                          }`}
+                          onClick={() => song.url && onPlaySong(song as ChansonResponse)}
+                        >
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            {playing && isPlaying ? (
+                              <div className="flex gap-1">
+                                <div className="w-1 h-4 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
+                                <div className="w-1 h-4 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                                <div className="w-1 h-4 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                              </div>
+                            ) : (
+                              <Play className="w-4 h-4 text-muted-foreground" />
+                            )}
+                            <span className="truncate font-medium">{song.titre}</span>
+                          </div>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="text-destructive hover:bg-destructive/10"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveSong(album.id, song.id);
+                            }}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-center text-muted-foreground py-6">Aucune chanson</p>
+                  )}
+                </div>
+
                 <Button
-                  variant="outline"
-                  className="flex-1 hover:bg-primary/10 hover:text-primary hover:border-primary/50 transition-all"
+                  className="w-full"
                   onClick={() => {
                     setAlbumToAdd(album);
                     setSelectedIds([]);
                     setShowAddDialog(true);
                   }}
                 >
-                  <Plus className="w-4 h-4 mr-2" /> Ajouter
+                  <Plus className="w-4 h-4 mr-2" />
+                  Ajouter des chansons
                 </Button>
-
-                <Button
-                  variant="outline"
-                  className="flex-1 hover:bg-accent/10 hover:text-accent hover:border-accent/50 transition-all"
-                  onClick={() => {
-                    setAlbumToManage(album);
-                    setShowManageDialog(true);
-                  }}
-                  disabled={!album.chansons?.length}
-                >
-                  Gérer
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
-      {/* Dialog : Ajouter des chansons */}
+      {/* Dialog ajout chansons */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -187,19 +209,23 @@ export function AlbumsList({
           </DialogHeader>
           <div className="max-h-96 overflow-y-auto space-y-3 py-4">
             {availableSongs.length === 0 ? (
-              <p className="text-center py-8 text-muted-foreground">Aucune chanson disponible</p>
+              <p className="text-center py-8 text-muted-foreground">
+                Aucune chanson disponible
+              </p>
             ) : (
               availableSongs.map((song) => (
-                <div key={song.id} className="flex items-center gap-3 p-3 rounded hover:bg-accent/30">
+                <div key={song.id} className="flex items-center gap-3 p-3 rounded hover:bg-accent/10">
                   <Checkbox
                     checked={selectedIds.includes(song.id)}
-                    onCheckedChange={() => setSelectedIds(prev =>
-                      prev.includes(song.id)
-                        ? prev.filter(id => id !== song.id)
-                        : [...prev, song.id]
-                    )}
+                    onCheckedChange={() =>
+                      setSelectedIds((prev) =>
+                        prev.includes(song.id)
+                          ? prev.filter((id) => id !== song.id)
+                          : [...prev, song.id]
+                      )
+                    }
                   />
-                  <Label className="flex-1 cursor-pointer">{song.titre}</Label>
+                  <Label className="flex-1 cursor-pointer truncate">{song.titre}</Label>
                   {song.url && (
                     <button onClick={() => onPlaySong(song)}>
                       <Play className="w-4 h-4 text-primary" />
@@ -210,50 +236,11 @@ export function AlbumsList({
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+              Annuler
+            </Button>
             <Button onClick={handleAdd} disabled={selectedIds.length === 0}>
               Ajouter ({selectedIds.length})
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog : Gérer (supprimer des chansons) */}
-      <Dialog open={showManageDialog} onOpenChange={setShowManageDialog}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Gérer "{albumToManage?.titre}"</DialogTitle>
-          </DialogHeader>
-          <div className="max-h-96 overflow-y-auto space-y-3 py-4">
-            {albumToManage?.chansons?.map((song) => {
-              const playing = currentSongId === song.id;
-              return (
-                <div
-                  key={song.id}
-                  className={`flex items-center justify-between p-4 rounded transition ${
-                    playing ? 'bg-accent/50' : 'bg-card/50 hover:bg-accent/30'
-                  }`}
-                  onClick={() => song.url && onPlaySong(song)}
-                >
-                  <span className="font-medium truncate pr-4">{song.titre}</span>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="text-destructive hover:bg-destructive/10"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemoveSong(song.id);
-                    }}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowManageDialog(false)}>
-              Fermer
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -266,6 +253,7 @@ export function AlbumsList({
             <AlertDialogTitle>Supprimer l'album ?</AlertDialogTitle>
             <AlertDialogDescription>
               "{albumToDelete?.titre}" sera supprimé définitivement.
+              <br />
               Les chansons resteront dans votre bibliothèque.
             </AlertDialogDescription>
           </AlertDialogHeader>

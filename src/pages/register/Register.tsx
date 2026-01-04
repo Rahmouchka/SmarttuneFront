@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react"; // ← Ajoute useEffect
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button.tsx";
 import { Card } from "@/components/ui/card.tsx";
@@ -9,9 +9,20 @@ const Register = () => {
   const navigate = useNavigate();
   const [selectedType, setSelectedType] = useState<"user" | "artist" | null>(null);
 
+  // ← NOUVELLE PARTIE : Navigation sécurisée
+  useEffect(() => {
+    if (selectedType) {
+      navigate(`/register/${selectedType}`);
+    }
+  }, [selectedType, navigate]);
+
+  // Si on a déjà choisi, on affiche un petit loader le temps de la redirection
   if (selectedType) {
-    navigate(`/register/${selectedType}`);
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Redirection...</p>
+      </div>
+    );
   }
 
   return (
@@ -41,7 +52,7 @@ const Register = () => {
         {/* Cards */}
         <div className="grid md:grid-cols-2 gap-8 animate-scale-in">
           {/* User Card */}
-          <Card 
+          <Card
             className="relative overflow-hidden border-2 border-border hover:border-accent transition-all duration-300 cursor-pointer group bg-card/50 backdrop-blur-sm"
             onClick={() => setSelectedType("user")}
           >
@@ -50,15 +61,12 @@ const Register = () => {
               <div className="w-20 h-20 bg-accent/20 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 mx-auto">
                 <User className="w-10 h-10 text-accent" />
               </div>
-              
               <h2 className="text-3xl font-bold text-center mb-4 text-foreground">
                 Utilisateur
               </h2>
-              
               <p className="text-muted-foreground text-center mb-6">
                 Profitez de millions de morceaux, créez vos playlists et découvrez de nouveaux artistes
               </p>
-
               <ul className="space-y-3 mb-8">
                 {[
                   "Streaming illimité",
@@ -73,10 +81,10 @@ const Register = () => {
                   </li>
                 ))}
               </ul>
-
-              <Button 
+              <Button
                 className="w-full bg-accent hover:bg-accent/90 text-accent-foreground hover:shadow-glow-accent transition-all duration-300"
                 size="lg"
+                onClick={() => setSelectedType("user")} // optionnel, déjà sur la card
               >
                 S'inscrire comme utilisateur
               </Button>
@@ -84,7 +92,7 @@ const Register = () => {
           </Card>
 
           {/* Artist Card */}
-          <Card 
+          <Card
             className="relative overflow-hidden border-2 border-border hover:border-primary transition-all duration-300 cursor-pointer group bg-card/50 backdrop-blur-sm"
             onClick={() => setSelectedType("artist")}
           >
@@ -93,15 +101,12 @@ const Register = () => {
               <div className="w-20 h-20 bg-primary/20 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 mx-auto">
                 <Music className="w-10 h-10 text-primary" />
               </div>
-              
               <h2 className="text-3xl font-bold text-center mb-4 text-foreground">
                 Artiste
               </h2>
-              
               <p className="text-muted-foreground text-center mb-6">
                 Partagez votre musique avec le monde, gérez vos sorties et connectez-vous avec vos fans
               </p>
-
               <ul className="space-y-3 mb-8">
                 {[
                   "Upload illimité de tracks",
@@ -116,10 +121,10 @@ const Register = () => {
                   </li>
                 ))}
               </ul>
-
-              <Button 
+              <Button
                 className="w-full bg-gradient-primary hover:shadow-glow transition-all duration-300"
                 size="lg"
+                onClick={() => setSelectedType("artist")}
               >
                 S'inscrire comme artiste
               </Button>
@@ -131,7 +136,7 @@ const Register = () => {
         <div className="text-center mt-8 animate-fade-in">
           <p className="text-muted-foreground">
             Vous avez déjà un compte ?{" "}
-            <button 
+            <button
               onClick={() => navigate("/login")}
               className="text-primary hover:underline font-semibold"
             >
@@ -142,8 +147,8 @@ const Register = () => {
 
         {/* Back button */}
         <div className="text-center mt-4 animate-fade-in">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             onClick={() => navigate("/")}
             className="text-muted-foreground hover:text-foreground"
           >
