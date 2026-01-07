@@ -1,43 +1,86 @@
-// src/types/music.ts
 
-// Doit correspondre exactement à l'enum MusicGenre dans ton backend Java
+
 export enum MusicGenre {
   POP = 'POP',
   ROCK = 'ROCK',
-  RAP = 'RAP',              // ← Important : tu as RAP dans le backend, pas HIP_HOP
-  CLASSIQUE = 'CLASSIQUE',
+  HIP_HOP = 'HIP_HOP',
   JAZZ = 'JAZZ',
+  CLASSICAL = 'CLASSICAL',
   ELECTRONIC = 'ELECTRONIC',
+  RNB = 'RNB',
+  COUNTRY = 'COUNTRY',
   REGGAE = 'REGGAE',
-  RNb = 'RNb',              // ← Attention à la casse : RNb (pas RNB)
-  AUTRE = 'AUTRE',
+  BLUES = 'BLUES',
 }
 
-// Interface correspondant à ce que retourne /api/artiste/{id}/chansons (ChansonResponse)
+export interface Chanson {
+  id: number;
+  titre: string;
+  musicGenre?: MusicGenre;
+  filePath: string;
+  uploadDate: string;
+  duree?: number;
+  url?: string;
+  albumId?: number;
+  albumTitre?: string;
+}
+
+export interface Album {
+  id: number;
+  titre: string;
+  dateCreation: string;
+  chansons: Chanson[];
+}
+
+export interface Artiste {
+  id: number;
+  nom: string;
+  prenom: string;
+  email: string;
+}
+
+// === TYPES POUR LA PARTIE USER (ajoutés par toi) ===
+
+export interface ChansonSimple {
+  id: number;
+  titre: string;
+  url: string;
+  musicGenre: string;
+  duree?: string;
+  artiste: number;
+}
+
 export interface ChansonResponse {
   id: number;
   titre: string;
   url: string;
-  duree: string;
-  musicGenre: MusicGenre | null;
-  albumId: number | null;
-  albumTitre: string | null;
-}
-
-// Interface correspondant à un objet Chanson brut retourné par upload (entité Chanson)
-export interface Chanson {
-  id: number;
-  titre: string;
-  url: string;              // URL Cloudinary
-  duree: string;            // "MM:SS"
-  dateSortie: string;       // ISO date ex: "2026-01-03"
-  musicGenre: MusicGenre | null;
-  album?: Album | null;     // Optionnel : album complet si chargé
+  duree?: string;
+  musicGenre: string;
   albumId?: number | null;
   albumTitre?: string | null;
 }
 
-// Interface correspondant à ce que retourne /api/artiste/{id}/albums (AlbumResponse)
+export interface Playlist {
+  id: number;
+  titre: string;
+  dateCreation: string;
+  visible: boolean;
+  createurId: number;
+  chansons: ChansonSimple[];
+}
+
+export interface PlaylistResponse {
+  id: number;
+  titre: string;
+  dateCreation: string;
+  visible: boolean;
+  createurId: number;
+  chansons: ChansonSimple[];
+}
+
+export interface FavorisResponse {
+  chansons: ChansonSimple[];
+}
 export interface AlbumResponse {
   id: number;
   titre: string;
@@ -46,24 +89,6 @@ export interface AlbumResponse {
   artisteId: number;
   nomArtiste: string;
   chansons: ChansonSimple[];        // ← Tableau de chansons simplifiées
-}
-
-// Version simplifiée d'une chanson dans la liste d'un album (comme dans AlbumResponse)
-export interface ChansonSimple {
-  id: number;
-  titre: string;
-  url: string;
-  duree: string;
-  musicGenre: MusicGenre | null;
-}
-
-// Pour les appels internes (ex: création album), on garde une version simple
-export interface Album {
-  id: number;
-  titre: string;
-  dateSortie: string;
-  couvertureUrl?: string | null;
-  chansons: Chanson[];
 }
 
 export interface Artiste {

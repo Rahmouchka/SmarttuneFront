@@ -151,7 +151,7 @@ export function AlbumsList({
                           className={`flex items-center justify-between p-3 rounded-lg transition-all cursor-pointer ${
                             playing ? 'bg-primary/10 border border-primary/50' : 'hover:bg-accent/5'
                           }`}
-                          onClick={() => song.url && onPlaySong(song as ChansonResponse)}
+                          onClick={() => song.url && onPlaySong(song)}
                         >
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             {playing && isPlaying ? (

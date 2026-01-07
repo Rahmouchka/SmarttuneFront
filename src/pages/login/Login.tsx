@@ -25,51 +25,49 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setLoading(true);
+  e.preventDefault();
+  setLoading(true);
 
-    try {
-      const res = await fetch("http://localhost:8082/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+  try {
+    const res = await fetch("http://localhost:8082/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
 
-      if (!res.ok) {
-        // FORCER LE MESSAGE CLAIR
-        throw new Error("Email ou mot de passe incorrect");
-      }
+    if (!res.ok) throw new Error("Email ou mot de passe incorrect");
 
-      const user: UserResponse = await res.json();
+    const user: UserResponse = await res.json();
 
-      // REDIRECTION SELON RÔLE
-      switch (user.role) {
-        case "USER":
-          navigate("/user/dashboard");
-          break;
-        case "ARTIST":
-          navigate("/artist/dashboard");
-          break;
-        case "ADMIN":
-          navigate("/admin/dashboard");
-          break;
-        default:
-          navigate("/user/dashboard");
-      }
+    // 🔹 Stockage dans localStorage
+    localStorage.setItem('user', JSON.stringify(user));
 
-      toast({ title: "Connexion réussie !" });
-    } catch (error) {
-      // MESSAGE UNIQUE ET SÉCURISÉ
-      toast({
-        title: "Erreur de connexion",
-        description: "Email ou mot de passe incorrect",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+    // REDIRECTION SELON RÔLE
+    switch (user.role) {
+      case "USER":
+        navigate("/user/dashboard");
+        break;
+      case "ARTIST":
+        navigate("/artist/dashboard");
+        break;
+      case "ADMIN":
+        navigate("/admin/dashboard");
+        break;
+      default:
+        navigate("/user/dashboard");
     }
-  };
 
+    toast({ title: "Connexion réussie !" });
+  } catch (error) {
+    toast({
+      title: "Erreur de connexion",
+      description: "Email ou mot de passe incorrect",
+      variant: "destructive",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
   return (
       <div className="min-h-screen bg-gradient-bg flex items-center justify-center p-4 relative overflow-hidden">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
